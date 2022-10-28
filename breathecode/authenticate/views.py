@@ -1,5 +1,6 @@
 import hashlib
 import os, requests, base64, logging
+from urllib.error import HTTPError
 import re
 import urllib.parse
 import breathecode.notify.actions as notify_actions
@@ -809,7 +810,7 @@ def save_github_token(request):
     error = request.query_params.get('error', False)
     error_description = request.query_params.get('error_description', '')
     if error:
-        raise APIException('Github: ' + error_description)
+        raise ValidationException('Github: ' + error_description, code=401)
 
     url = request.query_params.get('url', None)
     if url == None:

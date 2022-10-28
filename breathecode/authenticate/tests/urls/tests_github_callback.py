@@ -527,3 +527,34 @@ class AuthenticateTestSuite(AuthTestCase):
                 'user_id': 2
             }
         ])
+
+    @mock.patch('requests.get', GithubRequestsMock.apply_get_requests_mock())
+    @mock.patch('requests.post', GithubRequestsMock.apply_post_requests_mock())
+    def test_github_callback__with_user_different_email__without_credetials_of_github__with_cohort_user(self):
+        """Test /github/callback"""
+        user = {'email': 'FJOSE123@GMAIL.COM'}
+        role = {'slug': 'student', 'name': 'Student'}
+        model = self.generate_models(role=role, user=user, profile_academy=True, cohort_user=1, token=True)
+
+        original_url_callback = 'https://google.co.ve'
+        token_pattern = re.compile('^' + original_url_callback.replace('.', r'\.') +
+                                   r'\?token=[0-9a-zA-Z]{,40}$')
+        code = 'Konan'
+
+        token = self.get_token(1)
+
+        url = reverse_lazy(
+            'authenticate:github_callback'
+        ) + f'?error=access_denied&error_description=The+user+has+denied+your+application+access.&error_uri=https%3A%2F%2Fdocs.github.com%2Fapps%2Fmanaging-oauth-apps%2Ftroubleshooting-authorization-request-errors%2F%23access-denied'
+        params = {'url': original_url_callback, 'code': code, 'user': token}
+        response = self.client.get(f'{url}?{urllib.parse.urlencode(params)}')
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        self.assertEqual(self.bc.database.list_of('auth.User'), [{**self.model_to_dict(model, 'user')}])
+
+        self.assertEqual(self.bc.database.list_of('authenticate.Profile'), [])
+        self.assertEqual(self.bc.database.list_of('authenticate.CredentialsGithub'), [])
+        self.assertEqual(self.bc.database.list_of('authenticate.ProfileAcademy'), [
+            self.bc.format.to_dict(model.profile_academy),
+        ])
